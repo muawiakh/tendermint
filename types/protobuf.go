@@ -118,7 +118,6 @@ func (tm2pb) ConsensusParams(params *ConsensusParams) *abci.ConsensusParams {
 	return &abci.ConsensusParams{
 		BlockSize: &abci.BlockSize{
 			MaxTxsBytes: int32(params.BlockSize.MaxTxsBytes),
-			MaxTxs:      int32(params.BlockSize.MaxTxs),
 			MaxGas:      params.BlockSize.MaxGas,
 		},
 		TxSize: &abci.TxSize{
@@ -232,7 +231,6 @@ func (pb2tm) ConsensusParams(csp *abci.ConsensusParams) ConsensusParams {
 	return ConsensusParams{
 		BlockSize: BlockSize{
 			MaxTxsBytes: int(csp.BlockSize.MaxTxsBytes), // XXX
-			MaxTxs:      int(csp.BlockSize.MaxTxs),      // XXX
 			MaxGas:      csp.BlockSize.MaxGas,
 		},
 		TxSize: TxSize{
