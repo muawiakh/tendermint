@@ -90,8 +90,8 @@ setValidatorSet(signedHeader SignedHeader):
 votingPower(commit Commit):
   votingPower = 0
   for each precommit in commit.Precommits do:
-    if precommit.ValidatorAddress is in valSet and signature of the precommit verifies then
-      votingPower += valSet[precommit.ValidatorAddress].VotingPower
+    if precommit.ValidatorIndex is in valSet and signature of the precommit verifies then
+      votingPower += valSet[precommit.ValidatorIndex].VotingPower
   return votingPower
 
 votingPower(validatorSet []Validator):

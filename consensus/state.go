@@ -457,9 +457,7 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 		if seenCommit.Precommits[idx] == nil {
 			continue
 		}
-		addr, _ := state.LastValidators.GetByIndex(idx)
 		vote := seenCommit.GetByIndex(idx)
-		vote.ValidatorAddress = addr
 		added, err := lastPrecommits.AddVote(vote)
 		if !added || err != nil {
 			cmn.PanicCrisis(cmn.Fmt("Failed to reconstruct LastCommit: %v", err))
@@ -1488,7 +1486,8 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) error {
 		if err == ErrVoteHeightMismatch {
 			return err
 		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
-			if bytes.Equal(vote.ValidatorAddress, cs.privValidator.GetAddress()) {
+			ourIndex, _ := cs.Validators.GetByAddress(cs.privValidator.GetAddress())
+			if ourIndex == vote.ValidatorIndex {
 				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return err
 			}
@@ -1648,13 +1647,12 @@ func (cs *ConsensusState) signVote(type_ byte, hash []byte, header types.PartSet
 	addr := cs.privValidator.GetAddress()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
 	vote := &types.Vote{
-		ValidatorAddress: addr,
-		ValidatorIndex:   valIndex,
-		Height:           cs.Height,
-		Round:            cs.Round,
-		Timestamp:        time.Now().UTC(),
-		Type:             type_,
-		BlockID:          types.BlockID{hash, header},
+		ValidatorIndex: valIndex,
+		Height:         cs.Height,
+		Round:          cs.Round,
+		Timestamp:      time.Now().UTC(),
+		Type:           type_,
+		BlockID:        types.BlockID{hash, header},
 	}
 	err := cs.privValidator.SignVote(cs.state.ChainID, vote)
 	return vote, err

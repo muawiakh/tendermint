@@ -144,14 +144,11 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 		return false, ErrVoteNil
 	}
 	valIndex := vote.ValidatorIndex
-	valAddr := vote.ValidatorAddress
 	blockKey := vote.BlockID.Key()
 
 	// Ensure that validator index was set
 	if valIndex < 0 {
 		return false, errors.Wrap(ErrVoteInvalidValidatorIndex, "Index < 0")
-	} else if len(valAddr) == 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorAddress, "Empty address")
 	}
 
 	// Make sure the step matches.
@@ -164,17 +161,10 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Ensure that signer is a validator.
-	lookupAddr, val := voteSet.valSet.GetByIndex(valIndex)
+	_, val := voteSet.valSet.GetByIndex(valIndex)
 	if val == nil {
 		return false, errors.Wrapf(ErrVoteInvalidValidatorIndex,
 			"Cannot find validator %d in valSet of size %d", valIndex, voteSet.valSet.Size())
-	}
-
-	// Ensure that the signer has the right address.
-	if !bytes.Equal(valAddr, lookupAddr) {
-		return false, errors.Wrapf(ErrVoteInvalidValidatorAddress,
-			"vote.ValidatorAddress (%X) does not match address (%X) for vote.ValidatorIndex (%d)\nEnsure the genesis file is correct across all validators.",
-			valAddr, lookupAddr, valIndex)
 	}
 
 	// If we already know of this vote, return false.

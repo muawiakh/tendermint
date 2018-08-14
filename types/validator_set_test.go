@@ -379,13 +379,12 @@ func TestValidatorSetVerifyCommit(t *testing.T) {
 	blockID := BlockID{Hash: []byte("hello")}
 	height := int64(5)
 	vote := &Vote{
-		ValidatorAddress: v1.Address,
-		ValidatorIndex:   0,
-		Height:           height,
-		Round:            0,
-		Timestamp:        time.Now().UTC(),
-		Type:             VoteTypePrecommit,
-		BlockID:          blockID,
+		ValidatorIndex: 0,
+		Height:         height,
+		Round:          0,
+		Timestamp:      time.Now().UTC(),
+		Type:           VoteTypePrecommit,
+		BlockID:        blockID,
 	}
 	sig, err := privKey.Sign(vote.SignBytes(chainID))
 	assert.NoError(t, err)

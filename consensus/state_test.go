@@ -677,7 +677,8 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.eventBus, types.EventQueryTimeoutWait)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
 	unlockCh := subscribe(cs1.eventBus, types.EventQueryUnlock)
-	voteCh := subscribeToVoter(cs1, cs1.privValidator.GetAddress())
+	ourIdx, _ := cs1.Validators.GetByAddress(cs1.privValidator.GetAddress())
+	voteCh := subscribeToVoter(cs1, ourIdx)
 
 	// everything done from perspective of cs1
 
@@ -773,7 +774,8 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.eventBus, types.EventQueryTimeoutPropose)
 	timeoutWaitCh := subscribe(cs1.eventBus, types.EventQueryTimeoutWait)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
-	voteCh := subscribeToVoter(cs1, cs1.privValidator.GetAddress())
+	ourIdx, _ := cs1.Validators.GetByAddress(cs1.privValidator.GetAddress())
+	voteCh := subscribeToVoter(cs1, ourIdx)
 
 	// start round and wait for propose and prevote
 	startTestRound(cs1, cs1.Height, 0)
@@ -897,7 +899,8 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.eventBus, types.EventQueryTimeoutWait)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
 	unlockCh := subscribe(cs1.eventBus, types.EventQueryUnlock)
-	voteCh := subscribeToVoter(cs1, cs1.privValidator.GetAddress())
+	ourIdx, _ := cs1.Validators.GetByAddress(cs1.privValidator.GetAddress())
+	voteCh := subscribeToVoter(cs1, ourIdx)
 
 	// the block for R0: gets polkad but we miss it
 	// (even though we signed it, shhh)
@@ -993,7 +996,8 @@ func TestStateSlashingPrevotes(t *testing.T) {
 	proposalCh := subscribe(cs1.eventBus, types.EventQueryCompleteProposal)
 	timeoutWaitCh := subscribe(cs1.eventBus, types.EventQueryTimeoutWait)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
-	voteCh := subscribeToVoter(cs1, cs1.privValidator.GetAddress())
+	ourIdx, _ := cs1.Validators.GetByAddress(cs1.privValidator.GetAddress())
+	voteCh := subscribeToVoter(cs1, ourIdx)
 
 	// start round and wait for propose and prevote
 	startTestRound(cs1, cs1.Height, 0)
@@ -1028,7 +1032,8 @@ func TestStateSlashingPrecommits(t *testing.T) {
 	proposalCh := subscribe(cs1.eventBus, types.EventQueryCompleteProposal)
 	timeoutWaitCh := subscribe(cs1.eventBus, types.EventQueryTimeoutWait)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
-	voteCh := subscribeToVoter(cs1, cs1.privValidator.GetAddress())
+	ourIdx, _ := cs1.Validators.GetByAddress(cs1.privValidator.GetAddress())
+	voteCh := subscribeToVoter(cs1, ourIdx)
 
 	// start round and wait for propose and prevote
 	startTestRound(cs1, cs1.Height, 0)
@@ -1075,7 +1080,8 @@ func TestStateHalt1(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.eventBus, types.EventQueryTimeoutWait)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
 	newBlockCh := subscribe(cs1.eventBus, types.EventQueryNewBlock)
-	voteCh := subscribeToVoter(cs1, cs1.privValidator.GetAddress())
+	ourIdx, _ := cs1.Validators.GetByAddress(cs1.privValidator.GetAddress())
+	voteCh := subscribeToVoter(cs1, ourIdx)
 
 	// start round and wait for propose and prevote
 	startTestRound(cs1, cs1.Height, 0)

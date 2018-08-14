@@ -87,11 +87,6 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, pubKey crypto.PubKey) e
 		return fmt.Errorf("DuplicateVoteEvidence Error: H/R/S does not match. Got %v and %v", dve.VoteA, dve.VoteB)
 	}
 
-	// Address must be the same
-	if !bytes.Equal(dve.VoteA.ValidatorAddress, dve.VoteB.ValidatorAddress) {
-		return fmt.Errorf("DuplicateVoteEvidence Error: Validator addresses do not match. Got %X and %X", dve.VoteA.ValidatorAddress, dve.VoteB.ValidatorAddress)
-	}
-
 	// Index must be the same
 	if dve.VoteA.ValidatorIndex != dve.VoteB.ValidatorIndex {
 		return fmt.Errorf("DuplicateVoteEvidence Error: Validator indices do not match. Got %d and %d", dve.VoteA.ValidatorIndex, dve.VoteB.ValidatorIndex)
@@ -100,13 +95,6 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, pubKey crypto.PubKey) e
 	// BlockIDs must be different
 	if dve.VoteA.BlockID.Equals(dve.VoteB.BlockID) {
 		return fmt.Errorf("DuplicateVoteEvidence Error: BlockIDs are the same (%v) - not a real duplicate vote", dve.VoteA.BlockID)
-	}
-
-	// pubkey must match address (this should already be true, sanity check)
-	addr := dve.VoteA.ValidatorAddress
-	if !bytes.Equal(pubKey.Address(), addr) {
-		return fmt.Errorf("DuplicateVoteEvidence FAILED SANITY CHECK - address (%X) doesn't match pubkey (%v - %X)",
-			addr, pubKey, pubKey.Address())
 	}
 
 	// Signatures must be valid

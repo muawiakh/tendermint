@@ -71,13 +71,12 @@ func NewValidatorStub(privValidator types.PrivValidator, valIndex int) *validato
 
 func (vs *validatorStub) signVote(voteType byte, hash []byte, header types.PartSetHeader) (*types.Vote, error) {
 	vote := &types.Vote{
-		ValidatorIndex:   vs.Index,
-		ValidatorAddress: vs.PrivValidator.GetAddress(),
-		Height:           vs.Height,
-		Round:            vs.Round,
-		Timestamp:        time.Now().UTC(),
-		Type:             voteType,
-		BlockID:          types.BlockID{hash, header},
+		ValidatorIndex: vs.Index,
+		Height:         vs.Height,
+		Round:          vs.Round,
+		Timestamp:      time.Now().UTC(),
+		Type:           voteType,
+		BlockID:        types.BlockID{hash, header},
 	}
 	err := vs.PrivValidator.SignVote(config.ChainID(), vote)
 	return vote, err
@@ -214,7 +213,7 @@ func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lo
 }
 
 // genesis
-func subscribeToVoter(cs *ConsensusState, addr []byte) chan interface{} {
+func subscribeToVoter(cs *ConsensusState, idx int) chan interface{} {
 	voteCh0 := make(chan interface{})
 	err := cs.eventBus.Subscribe(context.Background(), testSubscriber, types.EventQueryVote, voteCh0)
 	if err != nil {
@@ -225,7 +224,7 @@ func subscribeToVoter(cs *ConsensusState, addr []byte) chan interface{} {
 		for v := range voteCh0 {
 			vote := v.(types.EventDataVote)
 			// we only fire for our own votes
-			if bytes.Equal(addr, vote.Vote.ValidatorAddress) {
+			if idx == vote.Vote.ValidatorIndex {
 				voteCh <- v
 			}
 		}

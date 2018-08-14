@@ -204,7 +204,6 @@ func TestCommit(t *testing.T) {
 	assert.Equal(t, cmn.NewBitArray(10).Size(), commit.BitArray().Size())
 
 	cv := commit.GetByIndex(0)
-	cv.ValidatorAddress = voteSet.GetByIndex(0).ValidatorAddress
 	assert.Equal(t, voteSet.GetByIndex(0), cv)
 	assert.True(t, commit.IsCommit())
 }

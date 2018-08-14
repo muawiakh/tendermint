@@ -24,12 +24,11 @@ func exampleVote(t byte) *Vote {
 	}
 
 	return &Vote{
-		ValidatorAddress: []byte("addr"),
-		ValidatorIndex:   56789,
-		Height:           12345,
-		Round:            2,
-		Timestamp:        stamp,
-		Type:             t,
+		ValidatorIndex: 56789,
+		Height:         12345,
+		Round:          2,
+		Timestamp:      stamp,
+		Type:           t,
 		BlockID: BlockID{
 			Hash: []byte("hash"),
 			PartsHeader: PartSetHeader{
@@ -107,11 +106,10 @@ func TestVoteVerify(t *testing.T) {
 	pubkey := privVal.GetPubKey()
 
 	vote := examplePrevote()
-	vote.ValidatorAddress = pubkey.Address()
 
 	err := vote.Verify("test_chain_id", ed25519.GenPrivKey().PubKey())
 	if assert.Error(t, err) {
-		assert.Equal(t, ErrVoteInvalidValidatorAddress, err)
+		assert.Equal(t, ErrVoteInvalidSignature, err)
 	}
 
 	err = vote.Verify("test_chain_id", pubkey)

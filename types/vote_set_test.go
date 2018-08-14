@@ -19,7 +19,6 @@ func randVoteSet(height int64, round int, type_ byte, numValidators int, votingP
 // Convenience: Return new vote with different validator address/index
 func withValidator(vote *Vote, addr []byte, idx int) *Vote {
 	vote = vote.Copy()
-	vote.ValidatorAddress = addr
 	vote.ValidatorIndex = idx
 	return vote
 }
@@ -78,13 +77,12 @@ func TestAddVote(t *testing.T) {
 	}
 
 	vote := &Vote{
-		ValidatorAddress: val0.GetAddress(),
-		ValidatorIndex:   0, // since privValidators are in order
-		Height:           height,
-		Round:            round,
-		Type:             VoteTypePrevote,
-		Timestamp:        time.Now().UTC(),
-		BlockID:          BlockID{nil, PartSetHeader{}},
+		ValidatorIndex: 0, // since privValidators are in order
+		Height:         height,
+		Round:          round,
+		Type:           VoteTypePrevote,
+		Timestamp:      time.Now().UTC(),
+		BlockID:        BlockID{nil, PartSetHeader{}},
 	}
 	_, err := signAddVote(val0, vote, voteSet)
 	if err != nil {
@@ -108,13 +106,12 @@ func Test2_3Majority(t *testing.T) {
 	voteSet, _, privValidators := randVoteSet(height, round, VoteTypePrevote, 10, 1)
 
 	voteProto := &Vote{
-		ValidatorAddress: nil, // NOTE: must fill in
-		ValidatorIndex:   -1,  // NOTE: must fill in
-		Height:           height,
-		Round:            round,
-		Type:             VoteTypePrevote,
-		Timestamp:        time.Now().UTC(),
-		BlockID:          BlockID{nil, PartSetHeader{}},
+		ValidatorIndex: -1, // NOTE: must fill in
+		Height:         height,
+		Round:          round,
+		Type:           VoteTypePrevote,
+		Timestamp:      time.Now().UTC(),
+		BlockID:        BlockID{nil, PartSetHeader{}},
 	}
 	// 6 out of 10 voted for nil.
 	for i := 0; i < 6; i++ {
@@ -165,13 +162,12 @@ func Test2_3MajorityRedux(t *testing.T) {
 	blockPartsHeader := PartSetHeader{blockPartsTotal, crypto.CRandBytes(32)}
 
 	voteProto := &Vote{
-		ValidatorAddress: nil, // NOTE: must fill in
-		ValidatorIndex:   -1,  // NOTE: must fill in
-		Height:           height,
-		Round:            round,
-		Timestamp:        time.Now().UTC(),
-		Type:             VoteTypePrevote,
-		BlockID:          BlockID{blockHash, blockPartsHeader},
+		ValidatorIndex: -1, // NOTE: must fill in
+		Height:         height,
+		Round:          round,
+		Timestamp:      time.Now().UTC(),
+		Type:           VoteTypePrevote,
+		BlockID:        BlockID{blockHash, blockPartsHeader},
 	}
 
 	// 66 out of 100 voted for nil.
@@ -260,13 +256,12 @@ func TestBadVotes(t *testing.T) {
 	voteSet, _, privValidators := randVoteSet(height, round, VoteTypePrevote, 10, 1)
 
 	voteProto := &Vote{
-		ValidatorAddress: nil,
-		ValidatorIndex:   -1,
-		Height:           height,
-		Round:            round,
-		Timestamp:        time.Now().UTC(),
-		Type:             VoteTypePrevote,
-		BlockID:          BlockID{nil, PartSetHeader{}},
+		ValidatorIndex: -1,
+		Height:         height,
+		Round:          round,
+		Timestamp:      time.Now().UTC(),
+		Type:           VoteTypePrevote,
+		BlockID:        BlockID{nil, PartSetHeader{}},
 	}
 
 	// val0 votes for nil.
@@ -322,13 +317,12 @@ func TestConflicts(t *testing.T) {
 	blockHash2 := cmn.RandBytes(32)
 
 	voteProto := &Vote{
-		ValidatorAddress: nil,
-		ValidatorIndex:   -1,
-		Height:           height,
-		Round:            round,
-		Timestamp:        time.Now().UTC(),
-		Type:             VoteTypePrevote,
-		BlockID:          BlockID{nil, PartSetHeader{}},
+		ValidatorIndex: -1,
+		Height:         height,
+		Round:          round,
+		Timestamp:      time.Now().UTC(),
+		Type:           VoteTypePrevote,
+		BlockID:        BlockID{nil, PartSetHeader{}},
 	}
 
 	// val0 votes for nil.
@@ -451,13 +445,12 @@ func TestMakeCommit(t *testing.T) {
 	blockHash, blockPartsHeader := crypto.CRandBytes(32), PartSetHeader{123, crypto.CRandBytes(32)}
 
 	voteProto := &Vote{
-		ValidatorAddress: nil,
-		ValidatorIndex:   -1,
-		Height:           height,
-		Round:            round,
-		Timestamp:        time.Now().UTC(),
-		Type:             VoteTypePrecommit,
-		BlockID:          BlockID{blockHash, blockPartsHeader},
+		ValidatorIndex: -1,
+		Height:         height,
+		Round:          round,
+		Timestamp:      time.Now().UTC(),
+		Type:           VoteTypePrecommit,
+		BlockID:        BlockID{blockHash, blockPartsHeader},
 	}
 
 	// 6 out of 10 voted for some block.

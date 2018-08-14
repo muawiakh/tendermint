@@ -90,13 +90,12 @@ func makeVote(header *types.Header, valset *types.ValidatorSet, key crypto.PrivK
 	addr := key.PubKey().Address()
 	idx, _ := valset.GetByAddress(addr)
 	vote := &types.Vote{
-		ValidatorAddress: addr,
-		ValidatorIndex:   idx,
-		Height:           header.Height,
-		Round:            1,
-		Timestamp:        time.Now().Round(0).UTC(),
-		Type:             types.VoteTypePrecommit,
-		BlockID:          types.BlockID{Hash: header.Hash()},
+		ValidatorIndex: idx,
+		Height:         header.Height,
+		Round:          1,
+		Timestamp:      time.Now().Round(0).UTC(),
+		Type:           types.VoteTypePrecommit,
+		BlockID:        types.BlockID{Hash: header.Hash()},
 	}
 	// Sign it
 	signBytes := vote.SignBytes(header.ChainID)

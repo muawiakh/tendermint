@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -13,7 +12,6 @@ import (
 var (
 	ErrVoteUnexpectedStep            = errors.New("Unexpected step")
 	ErrVoteInvalidValidatorIndex     = errors.New("Invalid validator index")
-	ErrVoteInvalidValidatorAddress   = errors.New("Invalid validator address")
 	ErrVoteInvalidSignature          = errors.New("Invalid signature")
 	ErrVoteInvalidBlockHash          = errors.New("Invalid block hash")
 	ErrVoteNonDeterministicSignature = errors.New("Non-deterministic signature")
@@ -61,14 +59,13 @@ type Address = cmn.HexBytes
 
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress Address   `json:"validator_address"`
-	ValidatorIndex   int       `json:"validator_index"`
-	Height           int64     `json:"height"`
-	Round            int       `json:"round"`
-	Timestamp        time.Time `json:"timestamp"`
-	Type             byte      `json:"type"`
-	BlockID          BlockID   `json:"block_id"` // zero if vote is nil.
-	Signature        []byte    `json:"signature"`
+	ValidatorIndex int       `json:"validator_index"`
+	Height         int64     `json:"height"`
+	Round          int       `json:"round"`
+	Timestamp      time.Time `json:"timestamp"`
+	Type           byte      `json:"type"`
+	BlockID        BlockID   `json:"block_id"` // zero if vote is nil.
+	Signature      []byte    `json:"signature"`
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {
@@ -98,8 +95,8 @@ func (vote *Vote) String() string {
 		cmn.PanicSanity("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%02d/%v(%v) %X %X @ %s}",
-		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress),
+	return fmt.Sprintf("Vote{%v %v/%02d/%v(%v) %X %X @ %s}",
+		vote.ValidatorIndex,
 		vote.Height, vote.Round, vote.Type, typeString,
 		cmn.Fingerprint(vote.BlockID.Hash),
 		cmn.Fingerprint(vote.Signature),
@@ -107,10 +104,6 @@ func (vote *Vote) String() string {
 }
 
 func (vote *Vote) Verify(chainID string, pubKey crypto.PubKey) error {
-	if !bytes.Equal(pubKey.Address(), vote.ValidatorAddress) {
-		return ErrVoteInvalidValidatorAddress
-	}
-
 	if !pubKey.VerifyBytes(vote.SignBytes(chainID), vote.Signature) {
 		return ErrVoteInvalidSignature
 	}

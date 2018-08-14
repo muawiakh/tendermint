@@ -14,12 +14,11 @@ type voteData struct {
 
 func makeVote(val PrivValidator, chainID string, valIndex int, height int64, round, step int, blockID BlockID) *Vote {
 	v := &Vote{
-		ValidatorAddress: val.GetAddress(),
-		ValidatorIndex:   valIndex,
-		Height:           height,
-		Round:            round,
-		Type:             byte(step),
-		BlockID:          blockID,
+		ValidatorIndex: valIndex,
+		Height:         height,
+		Round:          round,
+		Type:           byte(step),
+		BlockID:        blockID,
 	}
 	err := val.SignVote(chainID, v)
 	if err != nil {

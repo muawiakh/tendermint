@@ -312,17 +312,15 @@ func TestReactorRecordsVotes(t *testing.T) {
 	err := reactor.Start()
 	require.NoError(t, err)
 	defer reactor.Stop()
-	_, val := css[0].state.Validators.GetByIndex(0)
 
 	// 1) new vote
 	vote := &types.Vote{
-		ValidatorIndex:   0,
-		ValidatorAddress: val.Address,
-		Height:           2,
-		Round:            0,
-		Timestamp:        time.Now().UTC(),
-		Type:             types.VoteTypePrevote,
-		BlockID:          types.BlockID{},
+		ValidatorIndex: 0,
+		Height:         2,
+		Round:          0,
+		Timestamp:      time.Now().UTC(),
+		Type:           types.VoteTypePrevote,
+		BlockID:        types.BlockID{},
 	}
 	bz, err := cdc.MarshalBinaryBare(&VoteMessage{vote})
 	require.NoError(t, err)
