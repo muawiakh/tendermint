@@ -426,7 +426,8 @@ func (voteSet *VoteSet) StringIndented(indent string) string {
 		if vote == nil {
 			voteStrings[i] = "nil-Vote"
 		} else {
-			voteStrings[i] = vote.String()
+			addr, _ := voteSet.valSet.GetByIndex(vote.ValidatorIndex)
+			voteStrings[i] = vote.String(addr)
 		}
 	}
 	return fmt.Sprintf(`VoteSet{
@@ -491,7 +492,8 @@ func (voteSet *VoteSet) voteStrings() []string {
 		if vote == nil {
 			voteStrings[i] = "nil-Vote"
 		} else {
-			voteStrings[i] = vote.String()
+			addr, _ := voteSet.valSet.GetByIndex(vote.ValidatorIndex)
+			voteStrings[i] = vote.String(addr)
 		}
 	}
 	return voteStrings

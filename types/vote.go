@@ -81,7 +81,7 @@ func (vote *Vote) Copy() *Vote {
 	return &voteCopy
 }
 
-func (vote *Vote) String() string {
+func (vote *Vote) String(address Address) string {
 	if vote == nil {
 		return "nil-Vote"
 	}
@@ -95,8 +95,8 @@ func (vote *Vote) String() string {
 		cmn.PanicSanity("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v %v/%02d/%v(%v) %X %X @ %s}",
-		vote.ValidatorIndex,
+	return fmt.Sprintf("Vote{%v:%X %v/%02d/%v(%v) %X %X @ %s}",
+		vote.ValidatorIndex, cmn.Fingerprint(address),
 		vote.Height, vote.Round, vote.Type, typeString,
 		cmn.Fingerprint(vote.BlockID.Hash),
 		cmn.Fingerprint(vote.Signature),
