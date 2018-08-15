@@ -159,12 +159,12 @@ func (b *Block) Size() int {
 }
 
 // String returns a string representation of the block
-func (b *Block) String() string {
-	return b.StringIndented("")
+func (b *Block) String(addrs []Address) string {
+	return b.StringIndented("", addrs)
 }
 
 // StringIndented returns a string representation of the block
-func (b *Block) StringIndented(indent string) string {
+func (b *Block) StringIndented(indent string, addrs []Address) string {
 	if b == nil {
 		return "nil-Block"
 	}
@@ -177,7 +177,7 @@ func (b *Block) StringIndented(indent string) string {
 		indent, b.Header.StringIndented(indent+"  "),
 		indent, b.Data.StringIndented(indent+"  "),
 		indent, b.Evidence.StringIndented(indent+"  "),
-		indent, b.LastCommit.StringIndented(indent+"  "),
+		indent, b.LastCommit.StringIndented(indent+"  ", addrs),
 		indent, b.Hash())
 }
 
@@ -422,13 +422,13 @@ func (commit *Commit) Hash() cmn.HexBytes {
 }
 
 // StringIndented returns a string representation of the commit
-func (commit *Commit) StringIndented(indent string) string {
+func (commit *Commit) StringIndented(indent string, addrs []Address) string {
 	if commit == nil {
 		return "nil-Commit"
 	}
 	precommitStrings := make([]string, len(commit.Precommits))
 	for i, precommit := range commit.Precommits {
-		precommitStrings[i] = precommit.String(i, []byte("---"),
+		precommitStrings[i] = precommit.String(i, addrs[i],
 			commit.HeightNum, commit.RoundNum, commit.BlockID)
 	}
 	return fmt.Sprintf(`Commit{
@@ -490,18 +490,18 @@ func (sh SignedHeader) ValidateBasic(chainID string) error {
 	return nil
 }
 
-func (sh SignedHeader) String() string {
-	return sh.StringIndented("")
+func (sh SignedHeader) String(addrs []Address) string {
+	return sh.StringIndented("", addrs)
 }
 
 // StringIndented returns a string representation of the SignedHeader.
-func (sh SignedHeader) StringIndented(indent string) string {
+func (sh SignedHeader) StringIndented(indent string, addrs []Address) string {
 	return fmt.Sprintf(`SignedHeader{
 %s  %v
 %s  %v
 %s}`,
 		indent, sh.Header.StringIndented(indent+"  "),
-		indent, sh.Commit.StringIndented(indent+"  "),
+		indent, sh.Commit.StringIndented(indent+"  ", addrs),
 		indent)
 	return ""
 }

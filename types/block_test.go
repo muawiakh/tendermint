@@ -148,13 +148,13 @@ func TestBlockSize(t *testing.T) {
 }
 
 func TestBlockString(t *testing.T) {
-	assert.Equal(t, "nil-Block", (*Block)(nil).String())
-	assert.Equal(t, "nil-Block", (*Block)(nil).StringIndented(""))
+	assert.Equal(t, "nil-Block", (*Block)(nil).String(nil))
+	assert.Equal(t, "nil-Block", (*Block)(nil).StringIndented("", nil))
 	assert.Equal(t, "nil-Block", (*Block)(nil).StringShort())
 
 	block := MakeBlock(int64(3), []Tx{Tx("Hello World")}, nil, nil)
-	assert.NotEqual(t, "nil-Block", block.String())
-	assert.NotEqual(t, "nil-Block", block.StringIndented(""))
+	assert.NotEqual(t, "nil-Block", block.String(nil))
+	assert.NotEqual(t, "nil-Block", block.StringIndented("", nil))
 	assert.NotEqual(t, "nil-Block", block.StringShort())
 }
 
