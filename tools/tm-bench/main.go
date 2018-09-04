@@ -18,26 +18,30 @@ var logger = log.NewNopLogger()
 
 func main() {
 	var durationInt, txsRate, connections, txSize int
-	var verbose bool
-	var outputFormat, broadcastTxMethod string
+	var verbose, ws, bdb_http, bdbTx bool
+	var outputFormat, broadcastTxMethod, bdbTxsBaseDir string
 
 	flagSet := flag.NewFlagSet("tm-bench", flag.ExitOnError)
 	flagSet.IntVar(&connections, "c", 1, "Connections to keep open per endpoint")
 	flagSet.IntVar(&durationInt, "T", 10, "Exit after the specified amount of time in seconds")
-	flagSet.IntVar(&txsRate, "r", 1000, "Txs per second to send in a connection")
+	flagSet.IntVar(&txsRate, "r", 100, "Txs per second to send in a connection")
 	flagSet.IntVar(&txSize, "s", 250, "The size of a transaction in bytes.")
+	flagSet.StringVar(&bdbTxsBaseDir, "bdb-txs-base-dir", "bdb_txs", "Base directory to access the BigchainDB transactions")
+	flagSet.BoolVar(&ws, "ws", false, "Send transactions to Tendermint websocket")
+	flagSet.BoolVar(&bdbTx, "bdbTx", false, "Send BigchainDB transaction to Tendermint websocket")
+	flagSet.BoolVar(&bdb_http, "bdb-http", false, "Send transacations to BigchainDB HTTP API")
 	flagSet.StringVar(&outputFormat, "output-format", "plain", "Output format: plain or json")
 	flagSet.StringVar(&broadcastTxMethod, "broadcast-tx-method", "async", "Broadcast method: async (no guarantees; fastest), sync (ensures tx is checked) or commit (ensures tx is checked and committed; slowest)")
 	flagSet.BoolVar(&verbose, "v", false, "Verbose output")
 
 	flagSet.Usage = func() {
-		fmt.Println(`Tendermint blockchain benchmarking tool.
+		fmt.Println(`Tendermint and BigchainDB benchmarking tool.
 
 Usage:
-	tm-bench [-c 1] [-T 10] [-r 1000] [-s 250] [endpoints] [-output-format <plain|json> [-broadcast-tx-method <async|sync|commit>]]
+	tm-bench [-c 1] [-T 10] [-r 100] [-s 250] [-ws] [-bdb-http] [-bdb-tx] [endpoints] [-output-format <plain|json> [-broadcast-tx-method <async|sync|commit>]]
 
 Examples:
-	tm-bench localhost:26657`)
+	tm-bench -ws localhost:26657`)
 		fmt.Println("Flags:")
 		flagSet.PrintDefaults()
 	}
@@ -67,6 +71,19 @@ Examples:
 
 		fmt.Printf("Running %ds test @ %s\n", durationInt, flagSet.Arg(0))
 	}
+	if _, err := os.Stat(bdbTxsBaseDir); os.IsNotExist(err) {
+		fmt.Println(bdbTxsBaseDir, " does not exist.")
+		os.Exit(1)
+	}
+
+	if ws && bdb_http {
+		fmt.Fprintln(os.Stderr,
+			"Either send transactions to ws `Tendermint websocket` or bdb-http `BigchainDB HTTP API`")
+		os.Exit(1)
+	} else if !ws && !bdb_http {
+		fmt.Println("Either specify -ws, -bdb-http")
+		os.Exit(1)
+	}
 
 	if broadcastTxMethod != "async" &&
 		broadcastTxMethod != "sync" &&
@@ -91,6 +108,10 @@ Examples:
 		txsRate,
 		txSize,
 		"broadcast_tx_"+broadcastTxMethod,
+		bdbTxsBaseDir,
+		bdb_http,
+		ws,
+		bdbTx,
 	)
 
 	// Wait until transacters have begun until we get the start time
@@ -152,17 +173,22 @@ func startTransacters(
 	txsRate int,
 	txSize int,
 	broadcastTxMethod string,
+	bdbTxsBaseDir string,
+	bdb_http bool,
+	ws bool,
+	bdbTx bool,
 ) []*transacter {
 	transacters := make([]*transacter, len(endpoints))
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(endpoints))
 	for i, e := range endpoints {
-		t := newTransacter(e, connections, txsRate, txSize, broadcastTxMethod)
+		t := newTransacter(e, connections, txsRate, txSize, broadcastTxMethod, [][]string{}, bdb_http)
+		t.Load(bdbTxsBaseDir, bdb_http)
 		t.SetLogger(logger)
 		go func(i int) {
 			defer wg.Done()
-			if err := t.Start(); err != nil {
+			if err := t.Start(ws, bdb_http, bdbTx); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

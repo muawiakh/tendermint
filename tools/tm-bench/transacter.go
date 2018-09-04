@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/hex"
@@ -11,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,10 +44,17 @@ type transacter struct {
 	endingWg    sync.WaitGroup
 	stopped     bool
 
-	logger log.Logger
+	logger   log.Logger
+	Txns     [][]string
+	bdb_http bool
 }
 
-func newTransacter(target string, connections, rate int, size int, broadcastTxMethod string) *transacter {
+type HTTPResponse struct {
+	status string
+	body   []byte
+}
+
+func newTransacter(target string, connections, rate int, size int, broadcastTxMethod string, txns [][]string, bdb_http bool) *transacter {
 	return &transacter{
 		Target:            target,
 		Rate:              rate,
@@ -53,17 +64,33 @@ func newTransacter(target string, connections, rate int, size int, broadcastTxMe
 		conns:             make([]*websocket.Conn, connections),
 		connsBroken:       make([]bool, connections),
 		logger:            log.NewNopLogger(),
+		Txns:              txns,
+		bdb_http:          bdb_http,
 	}
 }
 
 // SetLogger lets you set your own logger
+func (t *transacter) Load(bdbTxsBaseDir string, bdb_http bool) {
+	for i := 0; i < t.Connections; i++ {
+		fileName := strings.Join([]string{"txns_", strconv.Itoa(i)}, "")
+		filePath := strings.Join([]string{bdbTxsBaseDir + "/", fileName}, "")
+		bdbTxs, err := readBigchainDBTransactions(filePath, bdb_http)
+		if err != nil {
+			fmt.Println("Something wrong while reading BigchainDB Transactions")
+			os.Exit(1)
+		}
+		t.Txns = append(t.Txns, bdbTxs)
+	}
+}
+
+// Load all txns from the files
 func (t *transacter) SetLogger(l log.Logger) {
 	t.logger = l
 }
 
 // Start opens N = `t.Connections` connections to the target and creates read
 // and write goroutines for each connection.
-func (t *transacter) Start() error {
+func (t *transacter) Start(ws bool, bdb_http bool, bdbTx bool) error {
 	t.stopped = false
 
 	rand.Seed(time.Now().Unix())
@@ -79,8 +106,14 @@ func (t *transacter) Start() error {
 	t.startingWg.Add(t.Connections)
 	t.endingWg.Add(2 * t.Connections)
 	for i := 0; i < t.Connections; i++ {
-		go t.sendLoop(i)
-		go t.receiveLoop(i)
+		if ws {
+			go t.sendLoopWs(i, bdbTx)
+			go t.receiveLoop(i)
+		} else if bdb_http {
+			go t.sendLoopBdbHttp(i)
+			go t.receiveLoop(i)
+		}
+
 	}
 
 	t.startingWg.Wait()
@@ -120,8 +153,116 @@ func (t *transacter) receiveLoop(connIndex int) {
 	}
 }
 
+func SendTransactionBigchainDB(bdb_url string, tx_body []byte) {
+	client := &http.Client{}
+	req, _ := http.NewRequest("POST", bdb_url, bytes.NewBuffer(tx_body))
+	req.Header.Set("Content-Type", "application/json")
+	client.Do(req)
+}
+
 // sendLoop generates transactions at a given rate.
-func (t *transacter) sendLoop(connIndex int) {
+func (t *transacter) sendLoopBdbHttp(connIndex int) {
+	started := false
+	// Close the starting waitgroup, in the event that this fails to start
+	defer func() {
+		if !started {
+			t.startingWg.Done()
+		}
+	}()
+	c := t.conns[connIndex]
+
+	c.SetPingHandler(func(message string) error {
+		err := c.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(sendTimeout))
+		if err == websocket.ErrCloseSent {
+			return nil
+		} else if e, ok := err.(net.Error); ok && e.Temporary() {
+			return nil
+		}
+		return err
+	})
+
+	logger := t.logger.With("addr", c.RemoteAddr())
+
+	pingsTicker := time.NewTicker(pingPeriod)
+	txsTicker := time.NewTicker(1 * time.Second)
+	defer func() {
+		pingsTicker.Stop()
+		txsTicker.Stop()
+		t.endingWg.Done()
+	}()
+
+	bdbTxs := t.Txns[connIndex]
+	txId := 0
+	baseUrl := strings.Split(t.Target, ":")
+	bdbHttpUrl := baseUrl[0] + ":9984/api/v1/transactions"
+	if !strings.HasPrefix(bdbHttpUrl, "http") {
+		bdbHttpUrl = "http://" + bdbHttpUrl
+	}
+	fmt.Println("BigchainDB HTTP API :>", bdbHttpUrl)
+	for {
+		select {
+		case <-txsTicker.C:
+			startTime := time.Now()
+			endTime := startTime.Add(time.Second)
+			numTxSent := t.Rate
+			if !started {
+				t.startingWg.Done()
+				started = true
+			}
+
+			now := time.Now()
+			for i := 0; i < t.Rate; i++ {
+				go SendTransactionBigchainDB(bdbHttpUrl, []byte(bdbTxs[txId]))
+				txId++
+				if i%5 == 0 {
+					//time.Sleep(time.Millisecond)
+					now = time.Now()
+					if now.After(endTime) {
+						// Plus one accounts for sending this tx
+						numTxSent = i + 1
+						break
+					}
+				}
+			}
+
+			timeToSend := time.Since(startTime)
+			logger.Info(fmt.Sprintf("sent %d transactions", numTxSent), "took", timeToSend)
+			if timeToSend < 1*time.Second {
+				sleepTime := time.Second - timeToSend
+				logger.Debug(fmt.Sprintf("connection #%d is sleeping for %f seconds", connIndex, sleepTime.Seconds()))
+				time.Sleep(sleepTime)
+			}
+
+		case <-pingsTicker.C:
+			// go-rpc server closes the connection in the absence of pings
+			c.SetWriteDeadline(time.Now().Add(sendTimeout))
+			if err := c.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				err = errors.Wrap(err,
+					fmt.Sprintf("failed to write ping message on conn #%d", connIndex))
+				logger.Error(err.Error())
+				t.connsBroken[connIndex] = true
+			}
+		}
+
+		if t.stopped {
+			// To cleanly close a connection, a client should send a close
+			// frame and wait for the server to close the connection.
+			c.SetWriteDeadline(time.Now().Add(sendTimeout))
+			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			if err != nil {
+				err = errors.Wrap(err,
+					fmt.Sprintf("failed to write close message on conn #%d", connIndex))
+				logger.Error(err.Error())
+				t.connsBroken[connIndex] = true
+			}
+
+			return
+		}
+	}
+}
+
+// sendLoop generates transactions at a given rate.
+func (t *transacter) sendLoopWs(connIndex int, bdbTx bool) {
 	started := false
 	// Close the starting waitgroup, in the event that this fails to start
 	defer func() {
@@ -152,19 +293,27 @@ func (t *transacter) sendLoop(connIndex int) {
 		txsTicker.Stop()
 		t.endingWg.Done()
 	}()
-
-	// hash of the host name is a part of each tx
 	var hostnameHash [md5.Size]byte
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "127.0.0.1"
+	var tx, txHex, paramsJSON []byte
+	var bdbTxs []string
+	var err error
+
+	if !bdbTx {
+		// hash of the host name is a part of each tx
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = "127.0.0.1"
+		}
+		hostnameHash = md5.Sum([]byte(hostname))
+		tx = generateTx(connIndex, txNumber, t.Size, hostnameHash)
+		txHex = make([]byte, len(tx)*2)
+		hex.Encode(txHex, tx)
+	} else {
+		bdbTxs = t.Txns[connIndex]
 	}
-	hostnameHash = md5.Sum([]byte(hostname))
+	txId := 0
 	// each transaction embeds connection index, tx number and hash of the hostname
-	// we update the tx number between successive txs
-	tx := generateTx(connIndex, txNumber, t.Size, hostnameHash)
-	txHex := make([]byte, len(tx)*2)
-	hex.Encode(txHex, tx)
+	// we update the tx number between successive tx
 
 	for {
 		select {
@@ -180,16 +329,26 @@ func (t *transacter) sendLoop(connIndex int) {
 			now := time.Now()
 			for i := 0; i < t.Rate; i++ {
 				// update tx number of the tx, and the corresponding hex
-				updateTx(tx, txHex, txNumber)
-				paramsJSON, err := json.Marshal(map[string]interface{}{"tx": txHex})
-				if err != nil {
-					fmt.Printf("failed to encode params: %v\n", err)
-					os.Exit(1)
+				if !bdbTx {
+					updateTx(tx, txHex, txNumber)
+					paramsJSON, err = json.Marshal(map[string]interface{}{"tx": txHex})
+					if err != nil {
+						fmt.Printf("failed to encode params: %v\n", err)
+						os.Exit(1)
+					}
+				} else {
+					tx := bdbTxs[txId]
+					paramsJSON, err = json.Marshal(map[string]interface{}{"tx": tx})
+					if err != nil {
+						fmt.Printf("failed to encode params: %v\n", err)
+						os.Exit(1)
+					}
+					txId++
 				}
 				rawParamsJSON := json.RawMessage(paramsJSON)
 
 				c.SetWriteDeadline(now.Add(sendTimeout))
-				err = c.WriteJSON(rpctypes.RPCRequest{
+				err := c.WriteJSON(rpctypes.RPCRequest{
 					JSONRPC: "2.0",
 					ID:      "tm-bench",
 					Method:  t.BroadcastTxMethod,
@@ -255,6 +414,30 @@ func (t *transacter) sendLoop(connIndex int) {
 func connect(host string) (*websocket.Conn, *http.Response, error) {
 	u := url.URL{Scheme: "ws", Host: host, Path: "/websocket"}
 	return websocket.DefaultDialer.Dial(u.String(), nil)
+}
+
+func isJson(s string) bool {
+	var js map[string]interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
+}
+
+func readBigchainDBTransactions(path string, bdb_http bool) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		l := scanner.Text()
+		lines = append(lines, l)
+		if bdb_http && !isJson(l) {
+			fmt.Println("Transactions generated should be in JSON format for BigchainDB HTTP interface")
+			os.Exit(1)
+		}
+	}
+	return lines, scanner.Err()
 }
 
 func generateTx(connIndex int, txNumber int, txSize int, hostnameHash [md5.Size]byte) []byte {
